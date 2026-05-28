@@ -1,2 +1,36 @@
-# streetfix-taiwan
-本專題旨在開發一套結合 AI 與地圖定位技術，讓民眾能快速回報台灣街道中需要修整或改善的問題，例如道路坑洞、人行道破損、路燈故障、垃圾堆積與排水異常等。  使用者可透過網頁直接取得 GPS 定位，上傳現場照片或影片，並輸入問題描述。系統將利用 AI 技術自動分析內容，進行問題分類、事件摘要生成與嚴重程度判斷，協助整理大量通報資訊並提升管理效率。  本系統除了解決傳統通報流程繁瑣、資訊不完整等問題，也希望探討 AI 在公共治理與人文領域中的應用價值，例如提升公民參與、促進資訊透明與改善城市公平性。  技術上將結合： 網頁前端介面  GPS 定位  地圖系統 圖片／影片上傳 AI 文字與影像分析  最終目標為建立一套兼具實用性與人文關懷的智慧城市通報平台，展現 AI 如何協助城市管理與公共參與。
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
