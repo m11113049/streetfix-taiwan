@@ -11,10 +11,16 @@ import {
 const defaultReports = [
   {
     id: 1,
-    position: [24.1477, 120.6736],
-    type: "台中市政府",
+    title: "台中市政府示範通報",
     description: "示範通報點",
-    photoName: "未上傳照片",
+    category: "其他",
+    severity: "medium",
+    imageUrl: "",
+    location: {
+      lat: 24.1477,
+      lng: 120.6736,
+    },
+    status: "pending",
   },
 ];
 
@@ -37,21 +43,25 @@ export default function MapComponent() {
   const [myPosition, setMyPosition] = useState(null);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [focusPosition, setFocusPosition] = useState(null);
-  const [reportType, setReportType] = useState("道路坑洞");
+
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [photo, setPhoto] = useState(null);
+  const [category, setCategory] = useState("道路破損");
+  const [severity, setSeverity] = useState("medium");
+  const [imageFile, setImageFile] = useState(null);
+
   const [reports, setReports] = useState(defaultReports);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("streetfix_reports");
+    const saved = localStorage.getItem("streetfix_reports_v2");
     if (saved) setReports(JSON.parse(saved));
     setLoaded(true);
   }, []);
 
   useEffect(() => {
     if (loaded) {
-      localStorage.setItem("streetfix_reports", JSON.stringify(reports));
+      localStorage.setItem("streetfix_reports_v2", JSON.stringify(reports));
     }
   }, [reports, loaded]);
 
@@ -75,29 +85,39 @@ export default function MapComponent() {
   }
 
   function handleMapClick(lat, lng) {
-    setSelectedPosition([lat, lng]);
-    setReportType("道路坑洞");
+    setSelectedPosition({ lat, lng });
+    setTitle("");
     setDescription("");
-    setPhoto(null);
+    setCategory("道路破損");
+    setSeverity("medium");
+    setImageFile(null);
   }
 
   function submitReport() {
     if (!selectedPosition) return;
 
-    setReports((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        position: selectedPosition,
-        type: reportType,
-        description: description || "無補充描述",
-        photoName: photo ? photo.name : "未上傳照片",
+    const newReport = {
+      id: Date.now(),
+      title: title || `${category}通報`,
+      description: description || "無補充描述",
+      category: category,
+      severity: severity,
+      imageUrl: imageFile ? imageFile.name : "",
+      location: {
+        lat: selectedPosition.lat,
+        lng: selectedPosition.lng,
       },
-    ]);
+      status: "pending",
+    };
+
+    setReports((prev) => [...prev, newReport]);
 
     setSelectedPosition(null);
+    setTitle("");
     setDescription("");
-    setPhoto(null);
+    setCategory("道路破損");
+    setSeverity("medium");
+    setImageFile(null);
   }
 
   function deleteReport(id) {
@@ -108,6 +128,13 @@ export default function MapComponent() {
   function clearReports() {
     if (!confirm("確定要清除所有通報資料嗎？")) return;
     setReports(defaultReports);
+  }
+
+  function getStatusText(status) {
+    if (status === "pending") return "尚未處理";
+    if (status === "processing") return "處理中";
+    if (status === "resolved") return "已完成";
+    return status;
   }
 
   return (
@@ -134,22 +161,19 @@ export default function MapComponent() {
           <h3>新增通報</h3>
 
           <p>
-            緯度：{selectedPosition[0].toFixed(6)}
+            緯度：{selectedPosition.lat.toFixed(6)}
             <br />
-            經度：{selectedPosition[1].toFixed(6)}
+            經度：{selectedPosition.lng.toFixed(6)}
           </p>
 
-          <label>通報類型：</label>
-          <select
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value)}
-          >
-            <option>道路坑洞</option>
-            <option>人行道破損</option>
-            <option>路燈故障</option>
-            <option>垃圾堆積</option>
-            <option>排水異常</option>
-          </select>
+          <label>標題：</label>
+          <br />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="例如：校門口道路出現大型坑洞"
+            style={{ width: "100%", padding: "8px" }}
+          />
 
           <br />
           <br />
@@ -159,9 +183,41 @@ export default function MapComponent() {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="例如：坑洞很深，機車經過容易危險"
+            placeholder="例如：校門口道路有明顯坑洞，機車經過容易危險"
             style={{ width: "100%", height: "80px", padding: "8px" }}
           />
+
+          <br />
+          <br />
+
+          <label>分類：</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ marginLeft: "10px" }}
+          >
+            <option>道路破損</option>
+            <option>路燈故障</option>
+            <option>垃圾堆積</option>
+            <option>排水異常</option>
+            <option>人行道破損</option>
+            <option>交通號誌異常</option>
+            <option>其他</option>
+          </select>
+
+          <br />
+          <br />
+
+          <label>嚴重程度：</label>
+          <select
+            value={severity}
+            onChange={(e) => setSeverity(e.target.value)}
+            style={{ marginLeft: "10px" }}
+          >
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
 
           <br />
           <br />
@@ -171,10 +227,10 @@ export default function MapComponent() {
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setPhoto(e.target.files[0])}
+            onChange={(e) => setImageFile(e.target.files[0])}
           />
 
-          {photo && <p>已選擇照片：{photo.name}</p>}
+          {imageFile && <p>已選擇照片：{imageFile.name}</p>}
 
           <button onClick={submitReport}>送出通報</button>
 
@@ -209,17 +265,26 @@ export default function MapComponent() {
           {focusPosition && <FlyToLocation position={focusPosition} />}
 
           {reports.map((report) => (
-            <Marker key={report.id} position={report.position}>
+            <Marker
+              key={report.id}
+              position={[report.location.lat, report.location.lng]}
+            >
               <Popup>
-                <b>{report.type}</b>
+                <b>{report.title}</b>
                 <br />
-                {report.description}
+                分類：{report.category}
                 <br />
-                照片：{report.photoName}
+                嚴重程度：{report.severity}
                 <br />
-                緯度：{report.position[0].toFixed(6)}
+                狀態：{getStatusText(report.status)}
                 <br />
-                經度：{report.position[1].toFixed(6)}
+                描述：{report.description}
+                <br />
+                圖片：{report.imageUrl || "未上傳圖片"}
+                <br />
+                緯度：{report.location.lat.toFixed(6)}
+                <br />
+                經度：{report.location.lng.toFixed(6)}
               </Popup>
             </Marker>
           ))}
@@ -258,15 +323,20 @@ export default function MapComponent() {
                 backgroundColor: "#fff",
               }}
             >
-              <b>{report.type}</b>
+              <b>{report.title}</b>
+              <p>分類：{report.category}</p>
+              <p>嚴重程度：{report.severity}</p>
+              <p>狀態：{getStatusText(report.status)}</p>
               <p>{report.description}</p>
-              <p style={{ fontSize: "12px" }}>
-                緯度：{report.position[0].toFixed(6)}
-                <br />
-                經度：{report.position[1].toFixed(6)}
-              </p>
 
-              <button onClick={() => setFocusPosition(report.position)}>
+              <button
+                onClick={() =>
+                  setFocusPosition([
+                    report.location.lat,
+                    report.location.lng,
+                  ])
+                }
+              >
                 查看位置
               </button>
 
