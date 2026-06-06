@@ -4,7 +4,16 @@ const db = require("../firebase");
 
 router.post("/", async (req, res) => {
     try {
-        const { title, description, latitude, longitude } = req.body;
+        const {
+            title,
+            description,
+            latitude,
+            longitude,
+            imageUrl,
+            category,
+            severity,
+            aiSummary
+        } = req.body;
 
         if (!title || !description || latitude === undefined || longitude === undefined) {
             return res.status(400).json({
@@ -18,6 +27,12 @@ router.post("/", async (req, res) => {
             description,
             latitude,
             longitude,
+            
+            imageUrl: req.body.imageUrl || "",
+            category: req.body.category || "",
+            severity: req.body.severity || "",
+            aiSummary: req.body.aiSummary || "",
+
             status: "pending",
             createdAt: new Date().toISOString()
         };
