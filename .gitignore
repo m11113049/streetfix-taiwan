@@ -141,3 +141,12 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Node modules
+node_modules/
+
+# Firebase private key
+Backend/config/serviceAccountKey.json
+
+# Environment variables
+.env
