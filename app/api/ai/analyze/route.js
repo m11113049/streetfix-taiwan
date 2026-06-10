@@ -8,7 +8,7 @@
  *   - description: string（可選）
  */
 
-import { analyzeReport, analyzeTextOnly } from "../../../lib/analyzeReport";
+import { analyzeReport, analyzeTextOnly } from "../../../../lib/analyzeReport";
 
 export async function POST(request) {
   try {

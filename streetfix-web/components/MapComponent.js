@@ -52,7 +52,7 @@ export default function MapComponent() {
 
   const [reports, setReports] = useState(defaultReports);
   const [loaded, setLoaded] = useState(false);
-
+ 
   useEffect(() => {
     const saved = localStorage.getItem("streetfix_reports_v2");
     if (saved) setReports(JSON.parse(saved));
@@ -93,7 +93,7 @@ export default function MapComponent() {
     setImageFile(null);
   }
 
-  function submitReport() {
+  async function submitReport() {
     if (!selectedPosition) return;
 
     const newReport = {
@@ -110,7 +110,37 @@ export default function MapComponent() {
       status: "pending",
     };
 
-    setReports((prev) => [...prev, newReport]);
+    try {
+  const response = await fetch("http://localhost:5000/api/reports", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: newReport.title,
+      description: newReport.description,
+      category: newReport.category,
+      severity: newReport.severity,
+      latitude: newReport.location.lat,
+      longitude: newReport.location.lng,
+      imageUrl: newReport.imageUrl,
+    }),
+  });
+
+  const data = await response.json();
+  console.log("POST /api/reports status:", response.status);
+  console.log("POST /api/reports response:", data);
+
+  if (!response.ok) {
+    throw new Error(data.message || "新增通報失敗");
+  }
+
+  setReports((prev) => [...prev, newReport]);
+} catch (error) {
+  console.error("新增通報失敗:", error);
+  alert("新增通報失敗：" + error.message);
+  return;
+}
 
     setSelectedPosition(null);
     setTitle("");

@@ -35,3 +35,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# backend secrets and dependencies
+Backend/config/serviceAccountKey.json
+Backend/node_modules/
