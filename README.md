@@ -1,91 +1,49 @@
-<<<<<<< HEAD
-# StreetFix Taiwan — AI 分析模組
-
-## 快速開始
-
-1. 安裝依賴
-```bash
-npm install
-```
-
-2. 建立 `.env.local`（已建立，包含 GEMINI_API_KEY）
-
-3. 啟動開發伺服器
-```bash
-npm run dev
-```
-
-4. 測試 AI API
-```bash
-curl -X POST http://localhost:3000/api/ai/analyze \
-  -F "description=路面有大坑洞很危險"
-```
-
-## API 端點
-
-**POST** `http://localhost:3000/api/ai/analyze`
-
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| image | File | 現場照片（可選） |
-| description | string | 文字描述（可選） |
-
-## 檔案結構
-
-```
-streetfix-taiwan/
-├── lib/
-│   ├── analyzeReport.js    # Gemini API 核心
-│   ├── imageUtils.js       # 圖片工具
-│   └── useAIAnalysis.js    # React Hook
-├── components/
-│   └── AIResultCard.jsx    # 結果顯示元件
-└── app/api/ai/analyze/
-    └── route.js            # API 端點
-```
-=======
 # 🤖 AI 分析模組 — StreetFix Taiwan
 
 > **組員三負責範圍**：Gemini API 串接、圖片分析、問題分類、自動摘要生成、嚴重程度判斷
 
 ---
 
-## 📁 檔案結構
+## 快速開始
 
-```
-ai-analysis/
-├── lib/
-│   ├── analyzeReport.js   # 核心分析邏輯（Gemini API 呼叫 + JSON 解析）
-│   ├── imageUtils.js      # 圖片 Base64 轉換 + 壓縮工具
-│   ├── useAIAnalysis.js   # React Hook（供前端組員一使用）
-│   └── AIResultCard.jsx   # 分析結果顯示元件（供前端組員一使用）
-├── api/
-│   └── analyze.js         # Next.js API Route（/api/ai/analyze）
-├── tests/
-│   └── test-ai.mjs        # 測試腳本
-└── README.md
+1. 安裝依賴
+
+```bash
+npm install
 ```
 
----
-
-## ⚙️ 環境設定
-
-在專案根目錄的 `.env.local` 加入：
+2. 建立 `.env.local`（包含 GEMINI_API_KEY，到 [Google AI Studio](https://aistudio.google.com/app/apikey) 免費取得）
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-> 到 [Google AI Studio](https://aistudio.google.com/app/apikey) 免費取得 API Key
+3. 啟動開發伺服器
+
+```bash
+npm run dev
+```
+
+4. 測試 AI API
+
+```bash
+curl -X POST http://localhost:3000/api/ai/analyze \
+  -F "description=路面有大坑洞很危險"
+```
 
 ---
 
-## 🚀 快速開始
+## API 端點
 
-### 1. API 端點呼叫（POST /api/ai/analyze）
+**POST** `/api/ai/analyze`
+
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| image | File | 現場照片（可選） |
+| description | string | 文字描述（可選） |
+| reportId | string | 通報單 ID（可選） |
 
 ```javascript
-// 有圖片的通報
 const formData = new FormData();
 formData.append("image", imageFile);         // File 物件
 formData.append("description", "路面有坑洞"); // 文字描述
@@ -95,11 +53,13 @@ const res = await fetch("/api/ai/analyze", { method: "POST", body: formData });
 const { success, data } = await res.json();
 ```
 
-### 2. 在 React 元件中使用 Hook（給前端組員一）
+---
+
+## 在 React 元件中使用 Hook（給前端組員一）
 
 ```jsx
-import { useAIAnalysis } from "@/ai-analysis/lib/useAIAnalysis";
-import AIResultCard from "@/ai-analysis/lib/AIResultCard";
+import { useAIAnalysis } from "@/lib/useAIAnalysis";
+import AIResultCard from "@/components/AIResultCard";
 
 export default function ReportForm() {
   const { analyze, result, loading, error, progress } = useAIAnalysis();
@@ -125,7 +85,23 @@ export default function ReportForm() {
 
 ---
 
-## 📊 AI 分析回傳格式
+## 檔案結構
+
+```
+streetfix-taiwan/
+├── lib/
+│   ├── analyzeReport.js    # Gemini API 核心
+│   ├── imageUtils.js       # 圖片工具
+│   └── useAIAnalysis.js    # React Hook
+├── components/
+│   └── AIResultCard.jsx    # 結果顯示元件
+└── app/api/ai/analyze/
+    └── route.js            # API 端點
+```
+
+---
+
+## AI 分析回傳格式
 
 ```json
 {
@@ -170,21 +146,17 @@ export default function ReportForm() {
 
 ---
 
-## 🧪 執行測試
+## 執行測試
 
 ```bash
-# 安裝依賴（若需要）
-npm install
-
-# 設定 API Key 後執行測試
-node tests/test-ai.mjs
+node test-ai.mjs
 ```
 
-如要測試圖片分析，請在 `tests/` 資料夾放入 `test-image.jpg`。
+如要測試圖片分析，請在專案根目錄放入 `test-image.jpg`。
 
 ---
 
-## 🔗 與其他組員的介接
+## 與其他組員的介接
 
 ### 給前端組（組員一）
 - 引入 `useAIAnalysis` hook 使用 `analyze()` 觸發分析
@@ -208,9 +180,8 @@ node tests/test-ai.mjs
 
 ---
 
-## 📚 參考資料
+## 參考資料
 
 - [Gemini API 文件](https://ai.google.dev/docs)
 - [Google AI Studio（取得 API Key）](https://aistudio.google.com/app/apikey)
 - [Gemini 圖片分析教學](https://ai.google.dev/gemini-api/docs/vision)
->>>>>>> 149a146e720538a1b8936005b5899c4b0df1b4a7
