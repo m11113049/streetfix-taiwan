@@ -10,6 +10,18 @@
 
 import { analyzeReport, analyzeTextOnly } from "../../../lib/analyzeReport";
 
+// CORS：允許其他網域(如前端/整合組的部署網址)呼叫這支 API
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+// 處理瀏覽器的 CORS 預檢請求 (preflight)
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: corsHeaders });
+}
+
 export async function POST(request) {
   try {
     const formData = await request.formData();
@@ -17,7 +29,7 @@ export async function POST(request) {
     const description = formData.get("description") || "";
 
     if (!imageFile && !description.trim()) {
-      return Response.json({ success: false, error: "請提供圖片或文字描述" }, { status: 400 });
+      return Response.json({ success: false, error: "請提供圖片或文字描述" }, { status: 400, headers: corsHeaders });
     }
 
     let result;
@@ -31,9 +43,9 @@ export async function POST(request) {
       result = await analyzeTextOnly(description);
     }
 
-    return Response.json({ success: true, data: result });
+    return Response.json({ success: true, data: result }, { headers: corsHeaders });
   } catch (err) {
     console.error("[AI Route Error]", err.message);
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+    return Response.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders });
   }
 }
