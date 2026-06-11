@@ -1,18 +1,47 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../firebase");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
-router.post("/", async (req, res) => {
+// 建立 uploads 資料夾
+const uploadDir = path.join(__dirname, "../uploads");
+
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
+// multer 設定：圖片存到 backend/uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueName =
+            Date.now() +
+            "-" +
+            Math.round(Math.random() * 1e9) +
+            path.extname(file.originalname);
+
+        cb(null, uniqueName);
+    }
+});
+
+const upload = multer({ storage });
+
+// 新增通報，可接收圖片
+router.post("/", upload.single("image"), async (req, res) => {
     try {
         const {
             title,
             description,
             latitude,
             longitude,
-            imageUrl,
             category,
             severity,
-            aiSummary
+            aiSummary,
+            aiSuggestedAction
         } = req.body;
 
         if (!title || !description || latitude === undefined || longitude === undefined) {
@@ -22,17 +51,28 @@ router.post("/", async (req, res) => {
             });
         }
 
+        let imageUrl = "";
+
+        if (req.file) {
+            imageUrl = `http://localhost:5000/uploads/${req.file.filename}`;
+        }
+
         const newReport = {
             title,
             description,
-            latitude,
-            longitude,
-            
-            imageUrl: req.body.imageUrl || "",
-            category: req.body.category || "",
-            severity: req.body.severity || "",
-            aiSummary: req.body.aiSummary || "",
+            latitude: Number(latitude),
+            longitude: Number(longitude),
 
+            imageUrl,
+            imageName: req.file
+                ? Buffer.from(req.file.originalname, "latin1").toString("utf8")
+                : "",
+
+            category: category || "",
+            severity: severity || "",
+            aiSummary: req.body.aiSummary || "",
+            aiSuggestedAction: req.body.aiSuggestedAction || "",
+            
             status: "pending",
             createdAt: new Date().toISOString()
         };
@@ -45,9 +85,12 @@ router.post("/", async (req, res) => {
             data: {
                 id: docRef.id,
                 ...newReport
-            }
+            },
+            imageUrl
         });
     } catch (error) {
+        console.error("建立通報失敗：", error);
+
         res.status(500).json({
             status: "error",
             message: "建立通報失敗",
@@ -56,6 +99,7 @@ router.post("/", async (req, res) => {
     }
 });
 
+// 取得全部通報
 router.get("/", async (req, res) => {
     try {
         const snapshot = await db
@@ -82,6 +126,7 @@ router.get("/", async (req, res) => {
     }
 });
 
+// 取得單一通報
 router.get("/:id", async (req, res) => {
     try {
         const doc = await db.collection("reports").doc(req.params.id).get();
