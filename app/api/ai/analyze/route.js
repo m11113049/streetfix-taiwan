@@ -1,23 +1,32 @@
-/**
- * Next.js API Route — /api/ai/analyze
- * 放置位置：app/api/ai/analyze/route.js
- *
- * 接收前端 FormData，呼叫 Gemini，回傳對齊後端格式的 JSON
- * POST body: FormData
- *   - image: File（可選）
- *   - description: string（可選）
- */
+import { analyzeReport, analyzeTextOnly } from "../../../../lib/analyzeReport";
 
-import { analyzeReport, analyzeTextOnly } from "../../../lib/analyzeReport";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}
 
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    const imageFile  = formData.get("image");
+    const imageFile = formData.get("image");
     const description = formData.get("description") || "";
 
     if (!imageFile && !description.trim()) {
-      return Response.json({ success: false, error: "請提供圖片或文字描述" }, { status: 400 });
+      return Response.json(
+        { success: false, error: "請提供圖片或文字描述" },
+        {
+          status: 400,
+          headers: corsHeaders,
+        }
+      );
     }
 
     let result;
@@ -26,14 +35,37 @@ export async function POST(request) {
       const arrayBuffer = await imageFile.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString("base64");
       const mimeType = imageFile.type || "image/jpeg";
-      result = await analyzeReport({ imageBase64: base64, mimeType, userDescription: description });
+
+      result = await analyzeReport({
+        imageBase64: base64,
+        mimeType,
+        userDescription: description,
+      });
     } else {
       result = await analyzeTextOnly(description);
     }
 
-    return Response.json({ success: true, data: result });
+    return Response.json(
+      {
+        success: true,
+        data: result,
+      },
+      {
+        headers: corsHeaders,
+      }
+    );
   } catch (err) {
     console.error("[AI Route Error]", err.message);
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+
+    return Response.json(
+      {
+        success: false,
+        error: err.message,
+      },
+      {
+        status: 500,
+        headers: corsHeaders,
+      }
+    );
   }
 }
