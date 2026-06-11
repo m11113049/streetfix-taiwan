@@ -19,10 +19,10 @@ export default function MapComponent({ lat, lng, onLocationChange }: MapComponen
       </p>
       <button
         type="button"
-        onClick={() => onLocationChange({ lat: 25.033, lng: 121.5654 })}
+        onClick={() => onLocationChange({ lat: 24.801, lng: 120.971 })}
         className="mt-4 min-h-11 rounded-lg border border-teal-500 bg-white px-4 py-2 text-sm font-medium text-teal-800 transition hover:bg-teal-100"
       >
-        使用預設測試座標（台北）
+        使用預設測試座標
       </button>
     </section>
   );

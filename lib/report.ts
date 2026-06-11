@@ -1,11 +1,13 @@
+export type Location = {
+  lat: number;
+  lng: number;
+};
+
 export type ReportPayload = {
   title: string;
   description: string;
-  image: File | null;
-  location: {
-    lat: number;
-    lng: number;
-  };
+  imageUrl: string;
+  location: Location;
 };
 
 export async function analyzeImage(file: File | null): Promise<{ labels: string[] }> {

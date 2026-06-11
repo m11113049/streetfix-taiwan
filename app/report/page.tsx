@@ -13,7 +13,7 @@ export default function ReportPage() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<(typeof categoryOptions)[number]>(categoryOptions[0]);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const [location, setLocation] = useState({ lat: 25.033, lng: 121.5654 });
+  const [location, setLocation] = useState({ lat: 24.801, lng: 120.971 });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -47,7 +47,7 @@ export default function ReportPage() {
       await submitReport({
         title,
         description: `${description}\n類別：${category}`,
-        image: mediaFile,
+        imageUrl: previewUrl,
         location,
       });
 
