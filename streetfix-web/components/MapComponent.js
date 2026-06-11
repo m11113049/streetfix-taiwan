@@ -1,4 +1,10 @@
 import { useEffect, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import {
   MapContainer,
   TileLayer,
@@ -7,6 +13,14 @@ import {
   useMap,
   useMapEvents,
 } from "react-leaflet";
+
+delete L.Icon.Default.prototype._getIconUrl;
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x.src || markerIcon2x,
+  iconUrl: markerIcon.src || markerIcon,
+  shadowUrl: markerShadow.src || markerShadow,
+});
 
 const defaultReports = [
   {
@@ -94,61 +108,117 @@ export default function MapComponent() {
   }
 
   async function submitReport() {
-    if (!selectedPosition) return;
+  if (!selectedPosition) return;
+  
+  let aiResult = {
+  category: category,
+  severity: severity,
+  aiSummary: "",
+};
 
-    const newReport = {
-      id: Date.now(),
-      title: title || `${category}通報`,
-      description: description || "無補充描述",
-      category: category,
-      severity: severity,
-      imageUrl: imageFile ? imageFile.name : "",
-      location: {
-        lat: selectedPosition.lat,
-        lng: selectedPosition.lng,
-      },
-      status: "pending",
-    };
+try {
 
-    try {
-  const response = await fetch("http://localhost:5000/api/reports", {
+  const aiFormData = new FormData();
+
+  aiFormData.append("description", description);
+
+  if (imageFile) {
+    aiFormData.append("image", imageFile);
+  }
+
+  const aiResponse = await fetch("http://localhost:3001/api/ai/analyze", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      title: newReport.title,
-      description: newReport.description,
-      category: newReport.category,
-      severity: newReport.severity,
-      latitude: newReport.location.lat,
-      longitude: newReport.location.lng,
-      imageUrl: newReport.imageUrl,
-    }),
+    
+    body: aiFormData,
   });
 
-  const data = await response.json();
-  console.log("POST /api/reports status:", response.status);
-  console.log("POST /api/reports response:", data);
+  const aiData = await aiResponse.json();
+  console.log("AI 回傳結果：", aiData);
+  console.log("AI data：", aiData.data);
 
-  if (!response.ok) {
-    throw new Error(data.message || "新增通報失敗");
+  if (aiResponse.ok && aiData.success) {
+  aiResult = {
+  category: aiData.data?.category || category,
+  severity: aiData.data?.severity || severity,
+  aiSummary: aiData.data?.ai_summary || "",
+  aiSuggestedAction: aiData.data?.ai_suggested_action || "",
+    };
   }
-
-  setReports((prev) => [...prev, newReport]);
 } catch (error) {
-  console.error("新增通報失敗:", error);
-  alert("新增通報失敗：" + error.message);
-  return;
+  console.warn("AI 分析失敗，改用手動欄位：", error);
 }
 
-    setSelectedPosition(null);
-    setTitle("");
-    setDescription("");
-    setCategory("道路破損");
-    setSeverity("medium");
-    setImageFile(null);
+  const newReport = {
+  id: Date.now(),
+  title: title || aiData.data?.title || `${aiResult.category}通報`,
+  description: description || "無補充描述",
+
+  category: aiResult.category,
+  severity: aiResult.severity,
+
+  aiSummary: aiResult.aiSummary,
+  aiSuggestedAction: aiResult.aiSuggestedAction,
+
+  location: {
+    lat: selectedPosition.lat,
+    lng: selectedPosition.lng,
+  },
+
+  status: "pending",
+};
+
+  const formData = new FormData();
+
+  formData.append("title", newReport.title);
+  formData.append("description", newReport.description);
+  formData.append("category", newReport.category);
+  formData.append("aiSummary", newReport.aiSummary);
+  formData.append(
+  "aiSuggestedAction",
+  newReport.aiSuggestedAction
+  );
+  formData.append("severity", newReport.severity);
+  formData.append("latitude", newReport.location.lat);
+  formData.append("longitude", newReport.location.lng);
+
+  if (imageFile) {
+    formData.append("image", imageFile);
   }
+
+  try {
+    const response = await fetch("http://localhost:5000/api/reports", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+    console.log("後端回傳：", data);
+    console.log("狀態碼：", response.status);
+
+    if (!response.ok) {
+      throw new Error(data.message || "新增通報失敗");
+    }
+
+    setReports((prev) => [
+      ...prev,
+      {
+        ...newReport,
+        imageUrl: data.imageUrl || "",
+      },
+    ]);
+  } catch (error) {
+    console.error("新增通報失敗:", error);
+    alert("新增通報失敗：" + error.message);
+    return;
+  }
+
+  setSelectedPosition(null);
+  setTitle("");
+  setDescription("");
+  setCategory("道路破損");
+  setSeverity("medium");
+  setImageFile(null);
+}
 
   function deleteReport(id) {
     if (!confirm("確定要刪除這筆通報嗎？")) return;
@@ -310,7 +380,25 @@ export default function MapComponent() {
                 <br />
                 描述：{report.description}
                 <br />
-                圖片：{report.imageUrl || "未上傳圖片"}
+                AI摘要：{report.aiSummary || "尚未分析"}
+                <br />
+                AI建議：{report.aiSuggestedAction || "無"}
+                <br />
+                {report.imageUrl ? (
+  <img
+    src={report.imageUrl}
+    alt="通報圖片"
+    style={{
+      width: "220px",
+      maxHeight: "160px",
+      objectFit: "cover",
+      borderRadius: "8px",
+      marginTop: "8px",
+    }}
+  />
+) : (
+  <>圖片：未上傳圖片</>
+)}
                 <br />
                 緯度：{report.location.lat.toFixed(6)}
                 <br />
