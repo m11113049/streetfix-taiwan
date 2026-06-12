@@ -16,8 +16,12 @@ export async function OPTIONS() {
 export async function POST(request) {
   try {
     const formData = await request.formData();
+
     const imageFile = formData.get("image");
     const description = formData.get("description") || "";
+
+    // 新增：讀取前端下拉選單選到的分類
+    const selectedCategory = formData.get("category") || "";
 
     if (!imageFile && !description.trim()) {
       return Response.json(
@@ -44,6 +48,9 @@ export async function POST(request) {
     } else {
       result = await analyzeTextOnly(description);
     }
+
+    // 重要：使用者手動選的分類優先，不讓 AI 覆蓋成「其他」
+    result.category = selectedCategory || result.category || "其他";
 
     return Response.json(
       {

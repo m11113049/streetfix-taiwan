@@ -4,21 +4,51 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { analyzeImage, submitReport } from "@/lib/report";
+
 const MapComponent = dynamic(() => import("@/components/MapComponent"), {
   ssr: false,
 });
-import { analyzeImage, submitReport } from "@/lib/report";
 
-const categoryOptions = ["道路坑洞", "人行道破損", "路燈故障", "垃圾堆積", "排水異常"] as const;
+const categoryOptions = [
+  "道路破損",
+  "人行道破損",
+  "路燈故障",
+  "垃圾堆積",
+  "排水異常",
+  "其他",
+] as const;
+
+type ReportMarker = {
+  id?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  severity?: string;
+  status?: string;
+  latitude?: number;
+  longitude?: number;
+  lat?: number;
+  lng?: number;
+  location?: {
+    lat?: number;
+    lng?: number;
+  };
+};
 
 export default function ReportPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<(typeof categoryOptions)[number]>(categoryOptions[0]);
+  const [category, setCategory] =
+    useState<(typeof categoryOptions)[number]>(categoryOptions[0]);
+
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [location, setLocation] = useState({ lat: 24.801, lng: 120.971 });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+
+  // 新增：存放後端 / Firebase 讀回來的通報資料
+  const [reports, setReports] = useState<ReportMarker[]>([]);
 
   const previewUrl = useMemo(() => {
     if (!mediaFile) return "";
@@ -33,6 +63,40 @@ export default function ReportPage() {
     };
   }, [previewUrl]);
 
+  // 新增：讀取後端通報資料
+  async function fetchReports() {
+    try {
+      const response = await fetch("http://localhost:5000/api/reports", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      console.log("通報表單讀取後端完整資料：", data);
+
+      const reportList =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.reports)
+          ? data.reports
+          : [];
+
+      console.log("整理後的通報資料：", reportList);
+
+      setReports(reportList);
+    } catch (error) {
+      console.error("讀取通報資料失敗：", error);
+      setReports([]);
+    }
+  }
+
+  // 新增：頁面第一次載入時，自動讀取 Firebase / 後端資料
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     setMediaFile(file);
@@ -45,31 +109,36 @@ export default function ReportPage() {
 
     try {
       const aiResult = await analyzeImage(
-  mediaFile,
-  description,
-  category,
-  "medium"
-);
+        mediaFile,
+        description,
+        category,
+        "medium"
+      );
 
-console.log("準備送後端，AI結果：", aiResult);
+      console.log("手動選擇的分類：", category);
+      console.log("準備送後端，AI結果：", aiResult);
 
-await submitReport({
-  title: title || `${aiResult.category}通報`,
-  description,
-  category: aiResult.category,
-  severity: aiResult.severity,
-  aiSummary: aiResult.aiSummary,
-  aiSuggestedAction: aiResult.aiSuggestedAction,
-  imageFile: mediaFile,
-  location,
-});
-console.log("後端送出完成");
+      await submitReport({
+        title: title || `${category}通報`,
+        description,
+        category: category,
+        severity: aiResult.severity || "medium",
+        aiSummary: aiResult.aiSummary || "",
+        aiSuggestedAction: aiResult.aiSuggestedAction || "",
+        imageFile: mediaFile,
+        location,
+      });
+
+      console.log("後端送出完成");
 
       setMessage("通報已成功送出");
       setTitle("");
       setDescription("");
       setMediaFile(null);
       setCategory(categoryOptions[0]);
+
+      // 新增：送出成功後，重新讀取後端資料，讓 marker 立刻更新
+      await fetchReports();
     } catch (error) {
       console.error("submit report error:", error);
       setMessage("通報失敗，請確認後端是否已啟動。");
@@ -81,17 +150,30 @@ console.log("後端送出完成");
   return (
     <main className="mx-auto min-h-screen w-full max-w-3xl px-4 py-8 sm:px-6">
       <div className="mb-6">
-        <Link href="/" className="text-sm font-medium text-teal-800 underline underline-offset-4">
+        <Link
+          href="/"
+          className="text-sm font-medium text-teal-800 underline underline-offset-4"
+        >
           回到首頁
         </Link>
-        <h1 className="mt-3 text-2xl font-bold text-teal-900 sm:text-3xl">問題通報表單</h1>
+
+        <h1 className="mt-3 text-2xl font-bold text-teal-900 sm:text-3xl">
+          問題通報表單
+        </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl bg-white p-5 shadow-md sm:p-8">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5 rounded-2xl bg-white p-5 shadow-md sm:p-8"
+      >
         <div>
-          <label htmlFor="title" className="mb-2 block text-sm font-semibold text-teal-900">
+          <label
+            htmlFor="title"
+            className="mb-2 block text-sm font-semibold text-teal-900"
+          >
             標題
           </label>
+
           <input
             id="title"
             value={title}
@@ -103,9 +185,13 @@ console.log("後端送出完成");
         </div>
 
         <div>
-          <label htmlFor="description" className="mb-2 block text-sm font-semibold text-teal-900">
+          <label
+            htmlFor="description"
+            className="mb-2 block text-sm font-semibold text-teal-900"
+          >
             描述
           </label>
+
           <textarea
             id="description"
             value={description}
@@ -118,9 +204,13 @@ console.log("後端送出完成");
         </div>
 
         <div>
-          <label htmlFor="media" className="mb-2 block text-sm font-semibold text-teal-900">
+          <label
+            htmlFor="media"
+            className="mb-2 block text-sm font-semibold text-teal-900"
+          >
             上傳照片或影片
           </label>
+
           <input
             id="media"
             type="file"
@@ -128,6 +218,7 @@ console.log("後端送出完成");
             onChange={handleFileChange}
             className="block min-h-12 w-full rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-teal-700 file:px-4 file:py-2 file:font-medium file:text-white"
           />
+
           {mediaFile && previewUrl ? (
             <div className="mt-3 rounded-xl border border-teal-100 p-3">
               {mediaFile.type.startsWith("video/") ? (
@@ -147,13 +238,19 @@ console.log("後端送出完成");
         </div>
 
         <div>
-          <label htmlFor="category" className="mb-2 block text-sm font-semibold text-teal-900">
+          <label
+            htmlFor="category"
+            className="mb-2 block text-sm font-semibold text-teal-900"
+          >
             類別
           </label>
+
           <select
             id="category"
             value={category}
-            onChange={(event) => setCategory(event.target.value as (typeof categoryOptions)[number])}
+            onChange={(event) =>
+              setCategory(event.target.value as (typeof categoryOptions)[number])
+            }
             className="min-h-12 w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-base outline-none ring-teal-400 focus:ring-2"
           >
             {categoryOptions.map((item) => (
@@ -164,7 +261,12 @@ console.log("後端送出完成");
           </select>
         </div>
 
-        <MapComponent lat={location.lat} lng={location.lng} onLocationChange={setLocation} />
+        <MapComponent
+          lat={location.lat}
+          lng={location.lng}
+          onLocationChange={setLocation}
+          reports={reports}
+        />
 
         <button
           type="submit"
@@ -174,7 +276,9 @@ console.log("後端送出完成");
           {submitting ? "送出中..." : "送出通報"}
         </button>
 
-        {message ? <p className="text-sm font-medium text-teal-800">{message}</p> : null}
+        {message ? (
+          <p className="text-sm font-medium text-teal-800">{message}</p>
+        ) : null}
       </form>
     </main>
   );

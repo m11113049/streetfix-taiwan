@@ -36,33 +36,63 @@ export async function analyzeImage(
   }
 
   try {
-    const response = await fetch("/api/ai/analyze", {
-      method: "POST",
-      body: formData,
-    });
+    const response = await fetch(
+      "https://streetfix-taiwan-phfq.vercel.app/api/ai/analyze",
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
-    const data = await response.json();
+    let data: any = null;
+
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
 
     console.log("AI 回傳結果：", data);
 
-    if (!response.ok || !data.success) {
-      throw new Error(data.message || "AI 分析失敗");
+    // AI API 失敗時，不中斷流程，直接改用手動欄位
+    if (!response.ok || !data?.success) {
+      console.warn(
+        "AI 分析失敗，改用手動欄位：",
+        data?.error || data?.message || `HTTP ${response.status}`
+      );
+
+      return {
+        category: fallbackCategory,
+        severity: fallbackSeverity,
+        aiSummary: "AI 分析暫時失敗，已改用使用者手動填寫內容。",
+        aiSuggestedAction: "建議由相關單位派員確認。",
+      };
     }
 
+    const aiData = data.data ?? data;
+
     return {
-      category: data.data?.category || fallbackCategory,
-      severity: data.data?.severity || fallbackSeverity,
-      aiSummary: data.data?.ai_summary || "",
-      aiSuggestedAction: data.data?.ai_suggested_action || "",
+      category: aiData.category || fallbackCategory,
+      severity: aiData.severity || fallbackSeverity,
+      aiSummary:
+        aiData.ai_summary ||
+        aiData.aiSummary ||
+        aiData.summary ||
+        "AI 已完成分析，但未產生摘要。",
+      aiSuggestedAction:
+        aiData.ai_suggested_action ||
+        aiData.aiSuggestedAction ||
+        aiData.action ||
+        "建議由相關單位派員確認。",
     };
   } catch (error) {
-    console.warn("AI 分析失敗，改用手動欄位：", error);
+    console.warn("AI API 發生連線錯誤，改用手動欄位。");
 
     return {
       category: fallbackCategory,
       severity: fallbackSeverity,
-      aiSummary: "",
-      aiSuggestedAction: "",
+      aiSummary: "AI 分析暫時失敗，已改用使用者手動填寫內容。",
+      aiSuggestedAction: "建議由相關單位派員確認。",
     };
   }
 }

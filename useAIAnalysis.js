@@ -6,7 +6,11 @@
  *
  * 使用範例：
  *   const { analyze, result, loading, error, reset } = useAIAnalysis()
- *   await analyze({ file: imageFile, description: "路上有大坑洞" })
+ *   await analyze({
+ *     file: imageFile,
+ *     description: "路上有大坑洞",
+ *     category: "道路破損"
+ *   })
  */
 
 "use client";
@@ -18,16 +22,17 @@ export function useAIAnalysis() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [progress, setProgress] = useState(""); // 給使用者看的狀態文字
+  const [progress, setProgress] = useState("");
 
   /**
    * 執行 AI 分析
    * @param {Object} params
    * @param {File}   params.file        - 圖片 File 物件（可選）
    * @param {string} params.description - 文字描述（可選）
+   * @param {string} params.category    - 使用者選擇的通報分類
    * @param {string} params.reportId    - 通報單 ID（可選）
    */
-  const analyze = useCallback(async ({ file, description, reportId }) => {
+  const analyze = useCallback(async ({ file, description, category, reportId }) => {
     setLoading(true);
     setError(null);
     setResult(null);
@@ -37,29 +42,40 @@ export function useAIAnalysis() {
 
       if (file) {
         setProgress("正在壓縮圖片...");
+
         try {
-          // 嘗試在瀏覽器端壓縮（若在 Node.js 環境則跳過）
           if (typeof document !== "undefined") {
             const { base64, mimeType } = await compressAndConvert(file);
-            // 將 base64 轉回 Blob 再放入 FormData
+
             const byteCharacters = atob(base64);
             const byteArray = new Uint8Array(byteCharacters.length);
+
             for (let i = 0; i < byteCharacters.length; i++) {
               byteArray[i] = byteCharacters.charCodeAt(i);
             }
+
             const blob = new Blob([byteArray], { type: mimeType });
             formData.append("image", blob, file.name || "photo.jpg");
           } else {
             formData.append("image", file);
           }
         } catch {
-          // 壓縮失敗就直接用原圖
           formData.append("image", file);
         }
       }
 
-      if (description) formData.append("description", description);
-      if (reportId) formData.append("reportId", reportId);
+      if (description) {
+        formData.append("description", description);
+      }
+
+      // 重要：把下拉選單選到的分類一起送給 AI API
+      if (category) {
+        formData.append("category", category);
+      }
+
+      if (reportId) {
+        formData.append("reportId", reportId);
+      }
 
       setProgress("AI 分析中，請稍候...");
 
@@ -76,9 +92,12 @@ export function useAIAnalysis() {
 
       setResult(json.data);
       setProgress("分析完成！");
+
+      return json.data;
     } catch (err) {
       setError(err.message);
       setProgress("");
+      throw err;
     } finally {
       setLoading(false);
     }
