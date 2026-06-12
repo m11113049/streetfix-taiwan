@@ -65,19 +65,85 @@ export default function MapComponent() {
   const [imageFile, setImageFile] = useState(null);
 
   const [reports, setReports] = useState(defaultReports);
-  const [loaded, setLoaded] = useState(false);
+
  
   useEffect(() => {
-    const saved = localStorage.getItem("streetfix_reports_v2");
-    if (saved) setReports(JSON.parse(saved));
-    setLoaded(true);
-  }, []);
+  async function fetchReports() {
+    try {
+      const response = await fetch("http://localhost:5000/api/reports");
 
-  useEffect(() => {
-    if (loaded) {
-      localStorage.setItem("streetfix_reports_v2", JSON.stringify(reports));
+      const data = await response.json();
+
+      console.log("後端完整回傳資料：", data);
+
+      const reportList =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.reports)
+          ? data.reports
+          : [];
+
+      console.log("整理後的 reportList：", reportList);
+
+      const firebaseReports = reportList
+        .map((report) => {
+          const lat =
+            report.latitude ??
+            report.lat ??
+            report.location?.lat ??
+            report.location?.latitude;
+
+          const lng =
+            report.longitude ??
+            report.lng ??
+            report.location?.lng ??
+            report.location?.longitude;
+
+          return {
+            id: report.id || report._id || report.docId || Date.now() + Math.random(),
+
+            title: report.title || "未命名通報",
+            description: report.description || "無描述",
+
+            category: report.category || "其他",
+            severity: report.severity || "medium",
+
+            aiSummary: report.aiSummary || report.ai_summary || "",
+            aiSuggestedAction:
+              report.aiSuggestedAction ||
+              report.ai_suggested_action ||
+              "",
+
+            imageUrl: report.imageUrl || "",
+
+            location: {
+              lat: Number(lat),
+              lng: Number(lng),
+            },
+
+            status: report.status || "pending",
+          };
+        })
+        .filter((report) => {
+          return (
+            !Number.isNaN(report.location.lat) &&
+            !Number.isNaN(report.location.lng)
+          );
+        });
+
+      console.log("轉換後要顯示在地圖上的資料：", firebaseReports);
+
+      setReports(firebaseReports);
+    } catch (error) {
+      console.error("載入 Firebase 通報資料失敗：", error);
+      setReports([]);
     }
-  }, [reports, loaded]);
+  }
+
+  fetchReports();
+}, []);
 
   function getMyLocation() {
     if (!navigator.geolocation) {
@@ -109,74 +175,84 @@ export default function MapComponent() {
 
   async function submitReport() {
   if (!selectedPosition) return;
-  
+
   let aiResult = {
-  category: category,
-  severity: severity,
-  aiSummary: "",
-};
+    title: "",
+    category: category,
+    severity: severity,
+    aiSummary: "",
+    aiSuggestedAction: "",
+  };
 
-try {
+  try {
+    const aiFormData = new FormData();
 
-  const aiFormData = new FormData();
+      aiFormData.append("description", description);
+      aiFormData.append("category", category);
 
-  aiFormData.append("description", description);
-
-  if (imageFile) {
-    aiFormData.append("image", imageFile);
-  }
-
-  const aiResponse = await fetch("http://localhost:3001/api/ai/analyze", {
-    method: "POST",
+      if (imageFile) {
+        aiFormData.append("image", imageFile);
+      }
     
-    body: aiFormData,
-  });
+      const aiResponse = await fetch("http://localhost:3001/api/ai/analyze", {
+      method: "POST",
+      body: aiFormData,
+    });
 
-  const aiData = await aiResponse.json();
-  console.log("AI 回傳結果：", aiData);
-  console.log("AI data：", aiData.data);
+    const aiData = await aiResponse.json();
 
-  if (aiResponse.ok && aiData.success) {
-  aiResult = {
-  category: aiData.data?.category || category,
-  severity: aiData.data?.severity || severity,
-  aiSummary: aiData.data?.ai_summary || "",
-  aiSuggestedAction: aiData.data?.ai_suggested_action || "",
-    };
+    console.log("送出的手動分類：", category);
+    console.log("AI 回傳結果：", aiData);
+    console.log("AI data：", aiData.data);
+
+    if (aiResponse.ok && aiData.success) {
+      aiResult = {
+        category: category,
+        severity: aiData.data?.severity || severity,
+        aiSummary: aiData.data?.ai_summary || "",
+        aiSuggestedAction: aiData.data?.ai_suggested_action || "",
+      };
+    }
+  } catch (error) {
+    console.warn("AI 分析失敗，改用手動欄位：", error);
   }
-} catch (error) {
-  console.warn("AI 分析失敗，改用手動欄位：", error);
-}
 
   const newReport = {
-  id: Date.now(),
-  title: title || aiData.data?.title || `${aiResult.category}通報`,
-  description: description || "無補充描述",
+    id: Date.now(),
 
-  category: aiResult.category,
-  severity: aiResult.severity,
+    title:
+      title ||
+      aiResult.title ||
+      `${category}通報`,
 
-  aiSummary: aiResult.aiSummary,
-  aiSuggestedAction: aiResult.aiSuggestedAction,
+    description: description || "無補充描述",
 
-  location: {
-    lat: selectedPosition.lat,
-    lng: selectedPosition.lng,
-  },
+    // 重要：Firebase 儲存也用手動選的分類
+    category: category,
 
-  status: "pending",
-};
+    severity: aiResult.severity || severity,
+
+    aiSummary: aiResult.aiSummary || "",
+    aiSuggestedAction: aiResult.aiSuggestedAction || "",
+
+    location: {
+      lat: selectedPosition.lat,
+      lng: selectedPosition.lng,
+    },
+
+    status: "pending",
+  };
 
   const formData = new FormData();
 
   formData.append("title", newReport.title);
   formData.append("description", newReport.description);
+
+  // 重要：這裡會真正存進 Firebase
   formData.append("category", newReport.category);
+
   formData.append("aiSummary", newReport.aiSummary);
-  formData.append(
-  "aiSuggestedAction",
-  newReport.aiSuggestedAction
-  );
+  formData.append("aiSuggestedAction", newReport.aiSuggestedAction);
   formData.append("severity", newReport.severity);
   formData.append("latitude", newReport.location.lat);
   formData.append("longitude", newReport.location.lng);
@@ -192,6 +268,8 @@ try {
     });
 
     const data = await response.json();
+
+    console.log("送到後端的新通報：", newReport);
     console.log("後端回傳：", data);
     console.log("狀態碼：", response.status);
 
@@ -296,13 +374,13 @@ try {
             onChange={(e) => setCategory(e.target.value)}
             style={{ marginLeft: "10px" }}
           >
-            <option>道路破損</option>
-            <option>路燈故障</option>
-            <option>垃圾堆積</option>
-            <option>排水異常</option>
-            <option>人行道破損</option>
-            <option>交通號誌異常</option>
-            <option>其他</option>
+            <option value="道路破損">道路破損</option>
+            <option value="路燈故障">路燈故障</option>
+            <option value="垃圾堆積">垃圾堆積</option>
+            <option value="排水異常">排水異常</option>
+            <option value="人行道破損">人行道破損</option>
+            <option value="交通號誌異常">交通號誌異常</option>
+            <option value="其他">其他</option>
           </select>
 
           <br />
