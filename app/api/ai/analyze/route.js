@@ -1,11 +1,13 @@
 import { analyzeReport, analyzeTextOnly } from "../../../../lib/analyzeReport";
 
+// CORS：允許其他網域(前端/整合組部署網址)呼叫這支 API
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "http://localhost:3000",
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
+// 處理瀏覽器的 CORS 預檢請求 (preflight)
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
